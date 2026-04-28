@@ -79,8 +79,242 @@ interface NodeInterface {
 }
 // DO NOT EDIT ends
 
+
+
 // Complete this!
 public class Node implements NodeInterface {
+
+
+    //helper method
+    // =========================
+    // Phase 2 Helper Methods
+    // =========================
+
+    static boolean isNodeName(String key) {
+        return key != null && key.startsWith("N:");
+    }
+
+    static boolean isDataName(String key) {
+        return key != null && key.startsWith("D:");
+    }
+
+    static String hashIDHex(String key) throws Exception {
+        if (key == null) {
+            throw new IllegalArgumentException("key cannot be null");
+        }
+
+        byte[] hashBytes = HashID.computeHashID(key);
+        return bytesToHex(hashBytes);
+    }
+
+    static String bytesToHex(byte[] bytes) {
+        if (bytes == null) {
+            return null;
+        }
+
+        StringBuilder result = new StringBuilder();
+
+        for (byte b : bytes) {
+            result.append(String.format("%02x", b & 0xff));
+        }
+
+        return result.toString();
+    }
+
+    static byte[] hexToBytes(String hex) {
+        if (hex == null) {
+            return null;
+        }
+
+        if (hex.length() % 2 != 0) {
+            return null;
+        }
+
+        byte[] result = new byte[hex.length() / 2];
+
+        for (int i = 0; i < hex.length(); i += 2) {
+            int high = Character.digit(hex.charAt(i), 16);
+            int low = Character.digit(hex.charAt(i + 1), 16);
+
+            if (high == -1 || low == -1) {
+                return null;
+            }
+
+            result[i / 2] = (byte) ((high << 4) + low);
+        }
+
+        return result;
+    }
+
+    static int hashDistance(String hashA, String hashB) {
+        byte[] a = hexToBytes(hashA);
+        byte[] b = hexToBytes(hashB);
+
+        if (a == null || b == null) {
+            return -1;
+        }
+
+        if (a.length != 32 || b.length != 32) {
+            return -1;
+        }
+
+        int matchingLeadingBits = 0;
+
+        for (int i = 0; i < 32; i++) {
+            int difference = (a[i] ^ b[i]) & 0xff;
+
+            if (difference == 0) {
+                matchingLeadingBits += 8;
+            } else {
+                int matchingBitsInThisByte = Integer.numberOfLeadingZeros(difference) - 24;
+                matchingLeadingBits += matchingBitsInThisByte;
+                break;
+            }
+        }
+
+        return 256 - matchingLeadingBits;
+    }
+
+    static int countSpaces(String value) {
+        if (value == null) {
+            return 0;
+        }
+
+        int count = 0;
+
+        for (int i = 0; i < value.length(); i++) {
+            if (value.charAt(i) == ' ') {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    static String encodeString(String value) {
+        if (value == null) {
+            value = "";
+        }
+
+        int spaces = countSpaces(value);
+        return spaces + " " + value + " ";
+    }
+
+    static DecodeResult decodeString(String text, int startIndex) {
+        if (text == null) {
+            return null;
+        }
+
+        if (startIndex < 0 || startIndex >= text.length()) {
+            return null;
+        }
+
+        int firstSpace = text.indexOf(' ', startIndex);
+
+        if (firstSpace == -1) {
+            return null;
+        }
+
+        String numberText = text.substring(startIndex, firstSpace);
+
+        if (numberText.length() == 0) {
+            return null;
+        }
+
+        int spacesNeeded;
+
+        try {
+            spacesNeeded = Integer.parseInt(numberText);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+
+        if (spacesNeeded < 0) {
+            return null;
+        }
+
+        int valueStart = firstSpace + 1;
+        int spacesSeen = 0;
+
+        for (int i = valueStart; i < text.length(); i++) {
+            if (text.charAt(i) == ' ') {
+                if (spacesSeen == spacesNeeded) {
+                    String value = text.substring(valueStart, i);
+                    return new DecodeResult(value, i + 1);
+                }
+
+                spacesSeen++;
+            }
+        }
+
+        return null;
+    }
+
+    static DecodeResult decodeString(String text) {
+        return decodeString(text, 0);
+    }
+
+    static class DecodeResult {
+        final String value;
+        final int nextIndex;
+
+        DecodeResult(String value, int nextIndex) {
+            this.value = value;
+            this.nextIndex = nextIndex;
+        }
+    }
+
+    static Address parseAddress(String addressText) {
+        if (addressText == null) {
+            return null;
+        }
+
+        int colonIndex = addressText.lastIndexOf(':');
+
+        if (colonIndex == -1) {
+            return null;
+        }
+
+        String ip = addressText.substring(0, colonIndex);
+        String portText = addressText.substring(colonIndex + 1);
+
+        if (ip.length() == 0 || portText.length() == 0) {
+            return null;
+        }
+
+        if (ip.contains(" ") || portText.contains(" ")) {
+            return null;
+        }
+
+        int port;
+
+        try {
+            port = Integer.parseInt(portText);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+
+        if (port < 1 || port > 65535) {
+            return null;
+        }
+
+        return new Address(ip, port);
+    }
+
+    static class Address {
+        final String ip;
+        final int port;
+
+        Address(String ip, int port) {
+            this.ip = ip;
+            this.port = port;
+        }
+
+        public String toString() {
+            return ip + ":" + port;
+        }
+    }
+    //-------- helper method end ---------
 
     public void setNodeName(String nodeName) throws Exception {
 	throw new Exception("Not implemented");
