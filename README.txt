@@ -49,7 +49,6 @@ i added some notes into the files those are only for my understading
 When the bucket for a given distance is full, older entries are
 kept rather than the new one, since the RFC says nodes should
 prefer stable peers and there is no easy liveness signal.
-
 A node cannot reliably determine its own external IP address from
 the socket alone (NAT, Azure, etc.). Self is stored under loopback
 at startup; AzureLabTest writes the correct external address
@@ -60,10 +59,9 @@ LocalTest passes for N = 2, 5, and 10 (32/32 writes and reads each).
 Manual relay tested with a 3-node setup A -> B -> C.
 Files
 -----
-  Node.java          implementation
-  HashID.java        provided
-  LocalTest.java     provided
-  AzureLabTest.java  Azure smoke test from the brief
-  README.txt         this file
-  capture.pcapng     Wireshark capture of AzureLabTest running on
-                     the Azure VM
+  Node.java          
+  HashID.java        
+  LocalTest.java     
+  AzureLabTest.java  
+  README.txt       
+  capture.pcapng     
