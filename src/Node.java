@@ -104,7 +104,7 @@ public class Node implements NodeInterface {
     
     
     
-    
+    // not met
     private static final int  MAX_TRIES = 4;
     private static final int  K = 3;
     private static final int  LOOKUP_ROUNDS = 6;
@@ -133,7 +133,7 @@ public class Node implements NodeInterface {
         
         
         
-        
+        // d
         final byte[] hash;
         long lastSeen;
         AddrEntry(String n, InetAddress i, int p, byte[] h) {
@@ -190,7 +190,7 @@ public class Node implements NodeInterface {
             boolean got = processOnePacket(wait);
             cleanupExpiredRelays();
             
-            
+            //sec3. 
             if (!got && delay != 0
                     && System.currentTimeMillis() >= deadline) return; } }
     private boolean processOnePacket(int waitMs) throws Exception {
@@ -221,7 +221,7 @@ public class Node implements NodeInterface {
         
         
         
-        
+        // 
         if (data[2] != SPACE) return;
         byte[] txid = { data[0], data[1] };
         if (txid[0] == SPACE || txid[1] == SPACE) return;
@@ -303,7 +303,7 @@ public class Node implements NodeInterface {
         out.write(SPACE);
         out.write((byte) code);
         sendBytes(out.toByteArray(), src, srcPort); }
-
+ //from here
     private void onRead(byte[] txid, byte[] data, InetAddress src, int srcPort) throws Exception {
         if (data.length < 6 || data[4] != SPACE) return;
         ParsedString key = decodeString(data, 5);
@@ -355,7 +355,7 @@ public class Node implements NodeInterface {
         out.write('X');
         out.write(SPACE);
         
-        
+        //<...>
         
         
         
@@ -389,7 +389,7 @@ public class Node implements NodeInterface {
             } else {
                 code = 'X'; } }
 
-        
+        //
         
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         out.write(txid);
@@ -430,7 +430,7 @@ public class Node implements NodeInterface {
 
         
         
-        
+        // not ended
         
         
         sendBytes(inner, dstAddr, dstPort);
@@ -505,7 +505,7 @@ public class Node implements NodeInterface {
                 p++; }
             
             
-            
+        //sec     
             if (p >= data.length || spaces != count + 1) return null;
             String value = new String(data, contentStart,
                     p - contentStart, StandardCharsets.UTF_8);
@@ -595,7 +595,7 @@ public class Node implements NodeInterface {
         if (existing != null) {
             peers.put(name, new AddrEntry(name, ip, port, h));
             return;}
-
+// 
         if (myHash != null && Arrays.equals(h, myHash)) {
             peers.put(name, new AddrEntry(name, ip, port, h));
             return;}
@@ -617,7 +617,7 @@ public class Node implements NodeInterface {
         byte[] t = new byte[2];
         do { rng.nextBytes(t); } while (t[0] == SPACE || t[1] == SPACE);
         return t; }
-
+//short ex.
     private static String hexTxid(byte[] txid) {
         return String.format("%02x%02x", txid[0] & 0xFF, txid[1] & 0xFF); }
 
@@ -668,7 +668,7 @@ public class Node implements NodeInterface {
     
     
     
-    
+    //dont SK
     
     private Wrapped wrapForRelay(byte[] inner, String destName,
                                  InetAddress destAddr, int destPort) throws Exception {
@@ -707,7 +707,7 @@ public class Node implements NodeInterface {
             out.write(encodeString(n));
             out.write(cur);
             cur = out.toByteArray(); }
-
+//
         AddrEntry first = peers.get(relays.get(0));
         if (first == null) throw new RuntimeException(
                 "Don't know address of relay base: " + relays.get(0));
@@ -866,7 +866,7 @@ public class Node implements NodeInterface {
                 return false;}}
 
         
-        
+        //.....
         
         byte[] kh = HashID.computeHashID(key);
         for (AddrEntry n : iterativeNearest(kh, K, LOOKUP_ROUNDS)) {
@@ -910,7 +910,7 @@ public class Node implements NodeInterface {
             out.write('N');
             
             
-            
+            //<--->
             
             
             out.write(SPACE);
@@ -928,8 +928,8 @@ public class Node implements NodeInterface {
                 ParsedString k2 = decodeString(reply, p);
                 if (k2 == null) break;
                 ParsedString v2 = decodeString(reply, k2.next);
-                
-                
+
+                //sec
                 
                 if (v2 == null) break;
                 if (k2.value != null && k2.value.startsWith("N:")) {
