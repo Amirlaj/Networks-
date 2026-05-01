@@ -101,9 +101,9 @@ public class Node implements NodeInterface {
     private static final byte SPACE = 0x20;
     private static final int  RECV_BUF = 65535;
     private static final long REQ_TIMEOUT_MS = 5000;
-    
-    
-    
+
+
+
     // not met
     private static final int  MAX_TRIES = 4;
     private static final int  K = 3;
@@ -112,12 +112,12 @@ public class Node implements NodeInterface {
     private String myName;
     private byte[] myHash;
     private DatagramSocket sock;
-    private int myPort;
-    private final Map<String, AddrEntry> peers = new HashMap<>();
+    private int myPorts;
+    private final Map<String, AddrEntry> peer = new HashMap<>();
 
     private final Map<String, String> store = new HashMap<>();
 
-    private final List<String> relays = new ArrayList<>();
+    private final List<String> realys = new ArrayList<>();
 
     private final Map<String, Pending> waiting = new HashMap<>();
 
@@ -129,10 +129,10 @@ public class Node implements NodeInterface {
         final String name;
         final InetAddress ip;
         final int port;
-        
-        
-        
-        
+
+
+
+
         // d
         final byte[] hash;
         long lastSeen;
@@ -142,21 +142,21 @@ public class Node implements NodeInterface {
     private static final class Pending {
         final byte[] txid;
         byte[] reply;
-        
-        
+
+
         boolean done;
         Pending(byte[] t) { txid = t; } }
     private static final class RelayPending {
         final byte[] innerTxid;
         final byte[] outerTxid;
-        
-        
+
+
         final InetAddress origAddr;
         final int origPort;
         final long createdMs = System.currentTimeMillis();
         RelayPending(byte[] inner, byte[] outer, InetAddress a, int p) {
-            
-            
+
+
             innerTxid = inner; outerTxid = outer; origAddr = a; origPort = p; } }
 
 
@@ -164,32 +164,32 @@ public class Node implements NodeInterface {
         if (nodeName == null || !nodeName.startsWith("N:")) {
             throw new IllegalArgumentException("Node name must start with N:"); }
         myName = nodeName;
-        
+
         myHash = HashID.computeHashID(nodeName); }
     public void openPort(int portNumber) throws Exception {
         if (sock != null) {
-            
-            
+
+
             try { sock.close(); } catch (Exception ignored) {} }
         sock = new DatagramSocket(portNumber);
-        myPort = portNumber; }
+        myPorts = portNumber; }
 
 
     public void handleIncomingMessages(int delay) throws Exception {
         long deadline = (delay == 0) ? Long.MAX_VALUE
-                
+
                 : System.currentTimeMillis() + delay;
         while (true) {
-            
-            
-            
+
+
+
             long left = (deadline == Long.MAX_VALUE) ? Long.MAX_VALUE
                     : deadline - System.currentTimeMillis();
             if (left <= 0) return;
             int wait = (int) Math.min(left, 1000);
             boolean got = processOnePacket(wait);
             cleanupExpiredRelays();
-            
+
             //sec3. 
             if (!got && delay != 0
                     && System.currentTimeMillis() >= deadline) return; } }
@@ -200,43 +200,43 @@ public class Node implements NodeInterface {
         byte[] buf = new byte[RECV_BUF];
         DatagramPacket dp = new DatagramPacket(buf, buf.length);
         try { sock.setSoTimeout(Math.max(1, waitMs));
-            
-            
-            
+
+
+
             sock.receive(dp);
         } catch (SocketTimeoutException e) {
             return false; }
         byte[] data = Arrays.copyOf(dp.getData(), dp.getLength());
         try {
-            
-            
-            
-            
+
+
+
+
             dispatch(data, dp.getAddress(), dp.getPort());
         } catch (Throwable t) { }
         return true; }
 
     private void dispatch(byte[] data, InetAddress src, int srcPort) throws Exception {
         if (data.length < 4) return;
-        
-        
-        
+
+
+
         // 
         if (data[2] != SPACE) return;
         byte[] txid = { data[0], data[1] };
         if (txid[0] == SPACE || txid[1] == SPACE) return;
         switch ((char) data[3]) {
-            case 'G': onName(txid, src, srcPort);               
-            break;
+            case 'G': onName(txid, src, srcPort);
+                break;
             case 'N': onNearest(txid, data, src, srcPort);        break;
             case 'E': onExists(txid, data, src, srcPort);         break;
             case 'R': onRead(txid, data, src, srcPort);           break;
-            case 'W': onWrite(txid, data, src, srcPort);     
-            break;
-            case 'C': onCAS(txid, data, src, srcPort); 
-            break;
-            case 'V': onRelay(txid, data, src, srcPort);   
-            break;
+            case 'W': onWrite(txid, data, src, srcPort);
+                break;
+            case 'C': onCAS(txid, data, src, srcPort);
+                break;
+            case 'V': onRelay(txid, data, src, srcPort);
+                break;
             case 'H': case 'O': case 'F':
             case 'S': case 'X': case 'D':
                 onResponse(txid, data, src, srcPort);
@@ -247,16 +247,16 @@ public class Node implements NodeInterface {
 
     private void onName(byte[] txid, InetAddress src, int srcPort) throws Exception {
         if (myName == null) return;
-        
-        
+
+
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         out.write(txid);
         out.write(SPACE);
-        
-        
-        
-        
-        
+
+
+
+
+
         out.write('H');
         out.write(SPACE);
         out.write(encodeString(myName));
@@ -264,9 +264,9 @@ public class Node implements NodeInterface {
     private void onNearest(byte[] txid, byte[] data, InetAddress src, int srcPort) throws Exception {
         if (data.length < 5 + 64 || data[4] != SPACE) return;
         byte[] target;
-        
-        
-        
+
+
+
         try {
             target = hexToBytes(new String(data, 5, 64, StandardCharsets.US_ASCII));
         } catch (Exception e) {
@@ -286,11 +286,11 @@ public class Node implements NodeInterface {
         ParsedString key = decodeString(data, 5);
         if (key == null) return;
 
-        
-        
-        
-        
-        
+
+
+
+
+
         char code;
         if (haveLocally(key.value))              code = 'Y';
         else if (amOneOfClosestThree(key.value)) code = 'N';
@@ -303,7 +303,7 @@ public class Node implements NodeInterface {
         out.write(SPACE);
         out.write((byte) code);
         sendBytes(out.toByteArray(), src, srcPort); }
- //from here
+    //from here
     private void onRead(byte[] txid, byte[] data, InetAddress src, int srcPort) throws Exception {
         if (data.length < 6 || data[4] != SPACE) return;
         ParsedString key = decodeString(data, 5);
@@ -317,17 +317,17 @@ public class Node implements NodeInterface {
         if (haveLocally(key.value)) {
             out.write('Y');
             out.write(SPACE);
-            out.write(encodeString(lookupLocal(key.value))); 
+            out.write(encodeString(lookupLocal(key.value)));
         } else if (amOneOfClosestThree(key.value)) {
             out.write('N'); } else {
             out.write('?'); }
         sendBytes(out.toByteArray(), src, srcPort); }
 
-    
-    
-    
-    
-    
+
+
+
+
+
     private void onWrite(byte[] txid, byte[] data, InetAddress src, int srcPort) throws Exception {
         if (data.length < 6 || data[4] != SPACE) return;
         ParsedString key = decodeString(data, 5);
@@ -345,20 +345,20 @@ public class Node implements NodeInterface {
         } else {
             code = 'X'; }
 
-        
-        
-        
-        
+
+
+
+
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         out.write(txid);
         out.write(SPACE);
         out.write('X');
         out.write(SPACE);
-        
+
         //<...>
-        
-        
-        
+
+
+
         out.write((byte) code);
         sendBytes(out.toByteArray(), src, srcPort); }
 
@@ -371,9 +371,9 @@ public class Node implements NodeInterface {
         ParsedString proposed = decodeString(data, expected.next);
         if (proposed == null) return;
 
-        
-        
-        
+
+
+
         char code;
         synchronized (store) {
             if (haveLocally(key.value)) {
@@ -390,7 +390,7 @@ public class Node implements NodeInterface {
                 code = 'X'; } }
 
         //
-        
+
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         out.write(txid);
         out.write(SPACE);
@@ -408,9 +408,9 @@ public class Node implements NodeInterface {
         byte[] innerTxid = { inner[0], inner[1] };
         if (innerTxid[0] == SPACE || innerTxid[1] == SPACE) return;
 
-        
-        
-        
+
+
+
         char innerType = (char) inner[3];
         boolean innerIsRequest =
                 innerType == 'G' || innerType == 'N' || innerType == 'E'
@@ -419,20 +419,20 @@ public class Node implements NodeInterface {
 
         InetAddress dstAddr;
         int dstPort;
-        if (myName != null && myName.equals(name.value) && myPort > 0) {
+        if (myName != null && myName.equals(name.value) && myPorts > 0) {
             dstAddr = InetAddress.getLoopbackAddress();
-            dstPort = myPort;
+            dstPort = myPorts;
         } else {
-            AddrEntry dst = peers.get(name.value);
+            AddrEntry dst = peer.get(name.value);
             if (dst == null) return;
             dstAddr = dst.ip;
             dstPort = dst.port; }
 
-        
-        
+
+
         // not ended
-        
-        
+
+
         sendBytes(inner, dstAddr, dstPort);
 
         if (innerIsRequest) {
@@ -448,9 +448,9 @@ public class Node implements NodeInterface {
             p.done = true;
             return; }
 
-        
-        
-        
+
+
+
         RelayPending rp = forwarded.remove(k);
         if (rp != null) {
             byte[] forward = data.clone();
@@ -463,10 +463,10 @@ public class Node implements NodeInterface {
             return; } }
 
 
-    
-    
-    
-    
+
+
+
+
     private static byte[] encodeString(String s) {
         if (s == null) s = "";
         byte[] body = s.getBytes(StandardCharsets.UTF_8);
@@ -503,18 +503,18 @@ public class Node implements NodeInterface {
                     if (spaces == count + 1) break;
                 }
                 p++; }
-            
-            
-        //sec     
+
+
+            //sec     
             if (p >= data.length || spaces != count + 1) return null;
             String value = new String(data, contentStart,
                     p - contentStart, StandardCharsets.UTF_8);
             return new ParsedString(value, p + 1); } catch (Exception e) {
             return null; } }
 
-    
-    
-    
+
+
+
 
     private static int distance(byte[] a, byte[] b) {
         if (a == null || b == null || a.length != 32 || b.length != 32) return 256;
@@ -530,28 +530,28 @@ public class Node implements NodeInterface {
                 break; } }
         return 256 - matching; }
 
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
     private List<AddrEntry> closestKnownTo(byte[] target, int n) {
-        List<AddrEntry> all = new ArrayList<>(peers.values());
+        List<AddrEntry> all = new ArrayList<>(peer.values());
         all.sort((x, y) -> Integer.compare(distance(x.hash, target),
                 distance(y.hash, target)));
         return (all.size() > n) ? all.subList(0, n) : all; }
 
-    
-    
-    
-    
+
+
+
+
     private boolean amOneOfClosestThree(String key) throws Exception {
         if (myHash == null) return true;
         byte[] kh = HashID.computeHashID(key);
         int myDist = distance(myHash, kh);
         int closer = 0;
-        for (AddrEntry e : peers.values()) {
+        for (AddrEntry e : peer.values()) {
             if (e.name.equals(myName)) continue;
             if (distance(e.hash, kh) < myDist) {
                 closer++;
@@ -560,13 +560,13 @@ public class Node implements NodeInterface {
 
     private boolean haveLocally(String key) {
         if (key == null) return false;
-        if (key.startsWith("N:")) return peers.containsKey(key);
+        if (key.startsWith("N:")) return peer.containsKey(key);
         return store.containsKey(key); }
 
     private String lookupLocal(String key) {
         if (key == null) return null;
         if (key.startsWith("N:")) {
-            AddrEntry e = peers.get(key);
+            AddrEntry e = peer.get(key);
             return (e == null) ? null : (e.ip.getHostAddress() + ":" + e.port); }
         return store.get(key); }
 
@@ -591,33 +591,33 @@ public class Node implements NodeInterface {
 
         byte[] h = HashID.computeHashID(name);
 
-        AddrEntry existing = peers.get(name);
+        AddrEntry existing = peer.get(name);
         if (existing != null) {
-            peers.put(name, new AddrEntry(name, ip, port, h));
+            peer.put(name, new AddrEntry(name, ip, port, h));
             return;}
 // 
         if (myHash != null && Arrays.equals(h, myHash)) {
-            peers.put(name, new AddrEntry(name, ip, port, h));
+            peer.put(name, new AddrEntry(name, ip, port, h));
             return;}
 
         if (myHash == null) {
-            peers.put(name, new AddrEntry(name, ip, port, h));
+            peer.put(name, new AddrEntry(name, ip, port, h));
             return;}
 
         int d = distance(myHash, h);
         int countAtThisDistance = 0;
-        for (AddrEntry e : peers.values()) {
+        for (AddrEntry e : peer.values()) {
             if (e.name.equals(myName)) continue;
             if (distance(myHash, e.hash) == d) countAtThisDistance++; }
         if (countAtThisDistance < 3) {
-            peers.put(name, new AddrEntry(name, ip, port, h)); } }
+            peer.put(name, new AddrEntry(name, ip, port, h)); } }
 
 
     private byte[] newTxid() {
         byte[] t = new byte[2];
         do { rng.nextBytes(t); } while (t[0] == SPACE || t[1] == SPACE);
         return t; }
-//short ex.
+    // ex.
     private static String hexTxid(byte[] txid) {
         return String.format("%02x%02x", txid[0] & 0xFF, txid[1] & 0xFF); }
 
@@ -661,34 +661,34 @@ public class Node implements NodeInterface {
         InetAddress addr;
         int port; }
 
-    
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
+
     //dont SK
-    
+
     private Wrapped wrapForRelay(byte[] inner, String destName,
                                  InetAddress destAddr, int destPort) throws Exception {
         Wrapped w = new Wrapped();
-        if (relays.isEmpty()) {
+        if (realys.isEmpty()) {
             w.packet = inner;
             w.outerTxid = new byte[]{ inner[0], inner[1] };
             w.addr = destAddr;
             w.port = destPort;
             return w; }
 
-        
-        
-        
-        
-        
-        
+
+
+
+
+
+
         List<String> wrapNames = new ArrayList<>();
         wrapNames.add(destName);
-        for (int i = relays.size() - 1; i >= 1; i--) wrapNames.add(relays.get(i));
+        for (int i = realys.size() - 1; i >= 1; i--) wrapNames.add(realys.get(i));
 
         byte[] cur = inner;
         byte[] outerTx = null;
@@ -699,18 +699,18 @@ public class Node implements NodeInterface {
             out.write(tx);
             out.write(SPACE);
             out.write('V');
-            
-            
-            
-            
+
+
+
+
             out.write(SPACE);
             out.write(encodeString(n));
             out.write(cur);
             cur = out.toByteArray(); }
 //
-        AddrEntry first = peers.get(relays.get(0));
+        AddrEntry first = peer.get(realys.get(0));
         if (first == null) throw new RuntimeException(
-                "Don't know address of relay base: " + relays.get(0));
+                "Don't know address of relay base: " + realys.get(0));
         w.packet = cur;
         w.outerTxid = outerTx;
         w.addr = first.ip;
@@ -729,10 +729,10 @@ public class Node implements NodeInterface {
                 while (!p.done && System.currentTimeMillis() < deadline) {
                     long remain = deadline - System.currentTimeMillis();
                     if (remain <= 0) break;
-                    
-                    
-                    
-                    
+
+
+
+
                     int wait = (int) Math.min(remain, 500);
                     processOnePacket(wait);
                     cleanupExpiredRelays(); }
@@ -747,15 +747,15 @@ public class Node implements NodeInterface {
             if (now - it.next().getValue().createdMs > RELAY_EXPIRY_MS) it.remove();}}
     public boolean isActive(String nodeName) throws Exception {
         if (nodeName == null) return false;
-        AddrEntry e = peers.get(nodeName);
+        AddrEntry e = peer.get(nodeName);
         if (e == null) {
             byte[] h = HashID.computeHashID(nodeName);
             iterativeNearest(h, K, 4);
-            e = peers.get(nodeName);}
+            e = peer.get(nodeName);}
         byte[] txid = newTxid();
         byte[] req = { txid[0], txid[1], SPACE, 'G' };
         byte[] reply;
-        if (relays.isEmpty()) {
+        if (realys.isEmpty()) {
             if (e == null) return false;
             reply = sendAndWait(req, e.ip, e.port, txid); } else {
             InetAddress placeholder = (e != null) ? e.ip
@@ -764,20 +764,20 @@ public class Node implements NodeInterface {
             Wrapped w = wrapForRelay(req, nodeName, placeholder, placeholderPort);
             reply = sendAndWait(w.packet, w.addr, w.port, w.outerTxid);}
 
-        
-        
-        
-        
+
+
+
+
         if (reply == null || reply.length < 6) return false;
         if (reply[3] != 'H' || reply[4] != SPACE) return false;
         ParsedString r = decodeString(reply, 5);
         return r != null && nodeName.equals(r.value);}
 
     public void pushRelay(String nodeName) throws Exception {
-        if (nodeName != null) relays.add(nodeName);}
+        if (nodeName != null) realys.add(nodeName);}
 
     public void popRelay() throws Exception {
-        if (!relays.isEmpty()) relays.remove(relays.size() - 1);}
+        if (!realys.isEmpty()) realys.remove(realys.size() - 1);}
 
     public boolean exists(String key) throws Exception {
         if (key == null) return false;
@@ -796,18 +796,18 @@ public class Node implements NodeInterface {
             } }
         return false;}
 
-    
-    
-    
-    
+
+
+
+
     public String read(String key) throws Exception {
         if (key == null) return null;
         if (haveLocally(key)) return lookupLocal(key);
 
-        
-        
-        
-        
+
+
+
+
         byte[] kh = HashID.computeHashID(key);
         for (AddrEntry n : iterativeNearest(kh, K, LOOKUP_ROUNDS)) {
             byte[] txid = newTxid();
@@ -828,10 +828,10 @@ public class Node implements NodeInterface {
     public boolean write(String key, String value) throws Exception {
         if (key == null || value == null) return false;
 
-        
-        
-        
-        
+
+
+
+
         if (haveLocally(key) || amOneOfClosestThree(key)) saveLocal(key, value);
 
         byte[] kh = HashID.computeHashID(key);
@@ -849,11 +849,11 @@ public class Node implements NodeInterface {
             if (code == 'R' || code == 'A') ok = true;}
         return ok;}
 
-    
-    
-    
-    
-    
+
+
+
+
+
     public boolean CAS(String key, String currentValue, String newValue) throws Exception {
         if (key == null || currentValue == null || newValue == null) return false;
 
@@ -865,9 +865,9 @@ public class Node implements NodeInterface {
                     return true;}
                 return false;}}
 
-        
+
         //.....
-        
+
         byte[] kh = HashID.computeHashID(key);
         for (AddrEntry n : iterativeNearest(kh, K, LOOKUP_ROUNDS)) {
             byte[] txid = newTxid();
@@ -880,16 +880,16 @@ public class Node implements NodeInterface {
             if (code == 'R' || code == 'A') return true;
             if (code == 'N') return false;}
         return false;}
-    
+
     private byte[] sendOptionallyWrapped(byte[] req, byte[] txid, AddrEntry dst) throws Exception {
-        if (relays.isEmpty()) {
+        if (realys.isEmpty()) {
             return sendAndWait(req, dst.ip, dst.port, txid);}
         Wrapped w = wrapForRelay(req, dst.name, dst.ip, dst.port);
         return sendAndWait(w.packet, w.addr, w.port, w.outerTxid);}
 
-    
-    
-    
+
+
+
 
     private List<AddrEntry> iterativeNearest(byte[] target, int n, int rounds) throws Exception {
         Set<String> asked = new HashSet<>();
@@ -900,24 +900,24 @@ public class Node implements NodeInterface {
                 if (!asked.contains(e.name)) { pick = e; break; }}
             if (pick == null) break;
             asked.add(pick.name);
-            
-            
-            
+
+
+
             byte[] txid = newTxid();
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             out.write(txid);
             out.write(SPACE);
             out.write('N');
-            
-            
-            //<--->
-            
-            
+
+
+            //SC
+
+
             out.write(SPACE);
             out.write(bytesToHex(target).getBytes(StandardCharsets.US_ASCII));
             byte[] req = out.toByteArray();
             byte[] reply;
-            if (relays.isEmpty()) {
+            if (realys.isEmpty()) {
                 reply = sendAndWait(req, pick.ip, pick.port, txid);} else {
                 Wrapped w = wrapForRelay(req, pick.name, pick.ip, pick.port);
                 reply = sendAndWait(w.packet, w.addr, w.port, w.outerTxid);}
@@ -930,7 +930,7 @@ public class Node implements NodeInterface {
                 ParsedString v2 = decodeString(reply, k2.next);
 
                 //sec
-                
+
                 if (v2 == null) break;
                 if (k2.value != null && k2.value.startsWith("N:")) {
                     rememberPeer(k2.value, v2.value);}
